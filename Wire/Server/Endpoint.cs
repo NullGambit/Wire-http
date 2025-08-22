@@ -1,8 +1,7 @@
-namespace Wire.server;
+namespace Wire.Server;
 
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
-public class Endpoint : Attribute
+public class EndpointAttribute : Attribute
 {
-	public string? path;
 	public bool persistent;
 }

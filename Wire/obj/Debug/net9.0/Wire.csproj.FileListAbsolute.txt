@@ -9,3 +9,4 @@
 /home/raven/Documents/code/C#/Wire/Wire/obj/Debug/net9.0/refint/Wire.dll
 /home/raven/Documents/code/C#/Wire/Wire/obj/Debug/net9.0/Wire.pdb
 /home/raven/Documents/code/C#/Wire/Wire/obj/Debug/net9.0/ref/Wire.dll
+/home/raven/Documents/code/C#/Wire/Wire/obj/Debug/net9.0/Wire.sourcelink.json

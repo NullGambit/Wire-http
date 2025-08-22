@@ -1,4 +1,4 @@
-namespace Wire.server;
+namespace Wire.Server;
 
 public record Config
 (

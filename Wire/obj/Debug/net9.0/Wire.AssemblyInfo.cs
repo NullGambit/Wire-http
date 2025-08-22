@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Wire")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2e558f46f1da01ce08c09367ed5c2e58c44cebae")]
 [assembly: System.Reflection.AssemblyProductAttribute("Wire")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Wire")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

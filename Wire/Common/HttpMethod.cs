@@ -1,0 +1,14 @@
+namespace Wire.Common;
+
+public enum HttpMethod
+{
+	Get,
+	Post,
+	Delete,
+	Connect,
+	Head,
+	Patch,
+	Put,
+	Options,
+	Trace,
+}

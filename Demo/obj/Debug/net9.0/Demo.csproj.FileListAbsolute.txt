@@ -16,3 +16,4 @@
 /home/raven/Documents/code/C#/Wire/Demo/obj/Debug/net9.0/Demo.pdb
 /home/raven/Documents/code/C#/Wire/Demo/obj/Debug/net9.0/Demo.genruntimeconfig.cache
 /home/raven/Documents/code/C#/Wire/Demo/obj/Debug/net9.0/ref/Demo.dll
+/home/raven/Documents/code/C#/Wire/Demo/obj/Debug/net9.0/Demo.sourcelink.json
