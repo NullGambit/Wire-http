@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
 using Microsoft.Extensions.Internal;
 
 namespace Wire.Server;
@@ -8,6 +9,7 @@ namespace Wire.Server;
 using System;
 using System.Net;
 using System.Net.Sockets;
+using WireStatus = Wire.Common.HttpStatusCode;
 
 using Common;
 
@@ -88,7 +90,7 @@ public class Server
 				// TODO send an error response
 				if (!request.HasValue)
 				{
-					Console.WriteLine("could not parse request");
+					await SimpleResponse(client, stream, WireStatus.BadRequest, "Could not parse request frame");
 					return;
 				}
 				
@@ -99,7 +101,7 @@ public class Server
 				// TODO send an error response
 				if (!exists)
 				{
-					Console.WriteLine($"Invalid path {r.path}");
+					await SimpleResponse(client, stream, WireStatus.NotFound, $"Invalid path {r.path}");
 					return;
 				}
 
@@ -112,12 +114,29 @@ public class Server
 					handler.executor.Execute(handler.obj, null);
 				}
 
+				await SimpleResponse(client, stream, WireStatus.OK);
 			}
 		}
 		finally
 		{
 			ArrayPool<byte>.Shared.Return(buffer);
 		}
+	}
+
+	async Task SimpleResponse(TcpClient client, NetworkStream stream, WireStatus status, string? message = null)
+	{
+		var headers = new Dictionary<string, string>
+		{
+			{ "Server", "Wire" }
+		};
+		
+		var response = new Response(status, headers, message: message);
+
+		var responseMemory = await FrameWriter.WriteResponse(response);
+				
+		Console.WriteLine(Encoding.UTF8.GetString(responseMemory.GetBuffer()));
+
+		await stream.WriteAsync(responseMemory.GetBuffer());
 	}
 
 	public void IndexHandlers()
