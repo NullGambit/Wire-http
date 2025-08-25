@@ -1,7 +1,6 @@
 using System.Text;
-using Wire.Common;
 
-namespace Wire.Common;
+namespace Wire;
 
 // a parser that can parse a single http request or response
 public struct FrameParser(byte[] memory)

@@ -1,8 +1,6 @@
-using System.Buffers;
-using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Wire.Common;
+namespace Wire;
 
 public static class FrameWriter
 {
@@ -40,7 +38,9 @@ public static class FrameWriter
 		
 		await ms.WriteAsync("\r\n"u8.ToArray());
 
-		foreach (var (key, value) in response.headers)
+		var headers = response.headers ?? Defaults.DefaultResponseHeader;
+
+		foreach (var (key, value) in headers)
 		{
 			await ms.WriteAsync(Encoding.UTF8.GetBytes(key));
 			await ms.WriteAsync(": "u8.ToArray());

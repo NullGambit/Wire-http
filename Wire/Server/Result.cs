@@ -1,4 +1,4 @@
-using Wire.Common;
+using Wire;
 
 namespace Wire.Server;
 

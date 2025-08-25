@@ -1,4 +1,4 @@
-using Wire.Common;
+using Wire;
 using Wire.Server;
 
 namespace Api;
@@ -17,9 +17,15 @@ public class UserEndpoint
 	// 	return new Result<string>("user not found", HttpStatusCode.BadRequest);
 	// }
 	
+	// [Get]
+	// public async Task Test()
+	// {
+	// 	await Task.Run(() => Console.WriteLine("test called!"));
+	// }
+	
 	[Get]
-	public async Task Test()
+	public async Task<Response> Test()
 	{
-		await Task.Run(() => Console.WriteLine("test called!"));
+		return new Response(HttpStatusCode.Accepted);
 	}
 }

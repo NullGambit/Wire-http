@@ -1,4 +1,4 @@
-namespace Wire.Common;
+namespace Wire;
 
 public enum HttpMethod
 {

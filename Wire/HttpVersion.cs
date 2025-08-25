@@ -1,6 +1,4 @@
-using System.Text;
-
-namespace Wire.Common;
+namespace Wire;
 
 public static class HttpVersion
 {

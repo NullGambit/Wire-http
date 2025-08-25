@@ -1,4 +1,4 @@
-using Common = Wire.Common;
+using Wire;
 
 namespace Wire.Server;
 
@@ -6,7 +6,7 @@ namespace Wire.Server;
 public class HandlerMethodAttribute : Attribute
 {
 	public string? path;
-	public Common.HttpMethod method;
+	public HttpMethod method;
 }
 
 [AttributeUsage(AttributeTargets.Method)]
@@ -15,7 +15,7 @@ public class GetAttribute : HandlerMethodAttribute
 	public GetAttribute(string? path = null)
 	{
 		this.path = path;
-		method = Common.HttpMethod.Get;
+		method = HttpMethod.Get;
 	}
 }
 
@@ -25,7 +25,7 @@ public class PutAttribute : HandlerMethodAttribute
 	public PutAttribute(string? path = null)
 	{
 		this.path = path;
-		method = Common.HttpMethod.Put;
+		method = HttpMethod.Put;
 	}
 }
 
@@ -35,7 +35,7 @@ public class PostAttribute : HandlerMethodAttribute
 	public PostAttribute(string? path = null)
 	{
 		this.path = path;
-		method = Common.HttpMethod.Post;
+		method = HttpMethod.Post;
 	}
 }
 
@@ -45,7 +45,7 @@ public class DeleteAttribute : HandlerMethodAttribute
 	public DeleteAttribute(string? path = null)
 	{
 		this.path = path;
-		method = Common.HttpMethod.Delete;
+		method = HttpMethod.Delete;
 	}
 }
 
@@ -55,6 +55,6 @@ public class PatchAttribute : HandlerMethodAttribute
 	public PatchAttribute(string? path = null)
 	{
 		this.path = path;
-		method = Common.HttpMethod.Patch;
+		method = HttpMethod.Patch;
 	}
 }

@@ -7,11 +7,10 @@ using Microsoft.Extensions.Internal;
 namespace Wire.Server;
 
 using System;
-using System.Net;
+using Net = System.Net;
 using System.Net.Sockets;
-using WireStatus = Wire.Common.HttpStatusCode;
 
-using Common;
+using Wire;
 
 public enum RunResult
 {
@@ -43,7 +42,7 @@ public class Server
 	{
 		_config = config ?? DefaultConfig;
 
-		var ok = IPAddress.TryParse("127.0.0.1", out var localAddress);
+		var ok = Net.IPAddress.TryParse("127.0.0.1", out var localAddress);
 
 		if (!ok)
 		{
@@ -90,7 +89,8 @@ public class Server
 				// TODO send an error response
 				if (!request.HasValue)
 				{
-					await SimpleResponse(client, stream, WireStatus.BadRequest, "Could not parse request frame");
+					SendResponse(client, stream, 
+						new Response(HttpStatusCode.BadRequest, message: "Could not parse request frame"));
 					return;
 				}
 				
@@ -101,20 +101,44 @@ public class Server
 				// TODO send an error response
 				if (!exists)
 				{
-					await SimpleResponse(client, stream, WireStatus.NotFound, $"Invalid path {r.path}");
+					SendResponse(client, stream, new Response(HttpStatusCode.NotFound));
 					return;
 				}
 
+				object? returnValue;
+
 				if (handler.isAsync)
 				{
-					await handler.executor.ExecuteAsync(handler.obj, null);
+					returnValue = await handler.executor.ExecuteAsync(handler.obj, null);
 				}
 				else
 				{
-					handler.executor.Execute(handler.obj, null);
+					returnValue = handler.executor.Execute(handler.obj, null);
 				}
+				
+				if (returnValue == null)
+				{
+					SendResponse(client, stream, new Response());
+				}
+				else
+				{
+					Response response;
 
-				await SimpleResponse(client, stream, WireStatus.OK);
+					if (returnValue.GetType() == typeof(Response))
+					{
+						response = (Response)returnValue;
+					}
+					else
+					{
+						var str = returnValue.ToString();
+
+						var bytes = Encoding.UTF8.GetBytes(str);
+						
+						response = new Response(body: bytes);
+					}
+
+					SendResponse(client, stream, response);
+				}
 			}
 		}
 		finally
@@ -123,20 +147,13 @@ public class Server
 		}
 	}
 
-	async Task SimpleResponse(TcpClient client, NetworkStream stream, WireStatus status, string? message = null)
+	async Task SendResponse(TcpClient client, NetworkStream stream, Response response)
 	{
-		var headers = new Dictionary<string, string>
-		{
-			{ "Server", "Wire" }
-		};
-		
-		var response = new Response(status, headers, message: message);
-
 		var responseMemory = await FrameWriter.WriteResponse(response);
 				
-		Console.WriteLine(Encoding.UTF8.GetString(responseMemory.GetBuffer()));
-
-		await stream.WriteAsync(responseMemory.GetBuffer());
+		await stream.WriteAsync(responseMemory.GetBuffer()[ .. (Index)responseMemory.Length]);
+		
+		client.Dispose();
 	}
 
 	public void IndexHandlers()
@@ -194,7 +211,7 @@ public class Server
 				
 				var obj = Activator.CreateInstance(type);
 				var executor = ObjectMethodExecutor.Create(method, type.GetTypeInfo());
-
+				
 				_handlers[fullPath] = new HandlerData()
 				{
 					obj = obj,

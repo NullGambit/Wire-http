@@ -1,4 +1,4 @@
-namespace Wire.Common;
+namespace Wire;
 
 public record struct Request
 (
