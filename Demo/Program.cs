@@ -20,15 +20,27 @@ struct PrefixResult
 	public List<PrefixVar>? vars;
 }
 
+class PrefixParam
+{
+	public string name;
+	public string? stoppingPoint;
+}
+
 class PrefixNode
 {
 	public const int ALPHABET_SIZE = 93;
 	public const int OFFSET = 33;
 	
-	public PrefixNode[] children = new PrefixNode[ALPHABET_SIZE];
+	public readonly PrefixNode[] children = new PrefixNode[ALPHABET_SIZE];
 	public int value;
-	public string? param;
-	public string? stoppingPoint;
+
+	public List<PrefixParam>? @params;
+}
+
+enum PrefixTreeAddResult
+{
+	Ok,
+	UnclosedBrace,
 }
 
 class PrefixTree
@@ -37,7 +49,7 @@ class PrefixTree
 
 	int GetIndex(char c) => c - PrefixNode.OFFSET;
 
-	public void Add(string key, int value)
+	public PrefixTreeAddResult Add(string key, int value)
 	{
 		var node = root;
 		
@@ -47,26 +59,35 @@ class PrefixTree
 
 			if (c == '{')
 			{
+				var param = new PrefixParam();
+				
 				var end = key.IndexOf('}', i);
-				
-				node.param = key[(i + 1)..end];
-				
-				i += end - i + 1;
 
+				if (end == -1)
+				{
+					return PrefixTreeAddResult.UnclosedBrace;
+				}
+				
+				param.name = key[(i + 1)..end];
+				
+				i = end;
+				
 				if (i < key.Length)
 				{
-					node.stoppingPoint = key[i..];
+					// in case there is another param stop at the next brace
+					var stopIndex = key.IndexOf('{', i);
+					param.stoppingPoint = key[(i + 1)..(stopIndex == -1 ? ^0 : stopIndex)];
 				}
-
-				// node.value = value;
-
-				// Console.WriteLine(node.stoppingPoint);
+				
+				node.@params ??= [];
+				
+				node.@params.Add(param);
 			}
 			else
 			{
 				var index = GetIndex(c);
 				var next = node.children[index];
-
+				
 				if (next == null)
 				{
 					next = new PrefixNode();
@@ -78,6 +99,8 @@ class PrefixTree
 		}
 
 		node.value = value;
+		
+		return PrefixTreeAddResult.Ok;
 	}
 
 	public bool TryGet(string key, out PrefixResult result)
@@ -89,39 +112,56 @@ class PrefixTree
 		
 		for (var i = 0; i < key.Length; i++)
 		{
-			if (!string.IsNullOrEmpty(node.param))
+			if (node.@params != null)
 			{
-				var prefixVar = new PrefixVar();
+				PrefixParam param = null;
+				var stopIndex = 0;
+
+				foreach (var p in node.@params)
+				{
+					if (!string.IsNullOrEmpty(p.stoppingPoint))
+					{
+						stopIndex = key.IndexOf(p.stoppingPoint, i);
+						
+						if (stopIndex != -1)
+						{
+							param = p;
+							break;
+						}
+					}
+					else
+					{
+						param = p;
+					}
+				}
 				
-				prefixVar.name = node.param;
-				
-				if (string.IsNullOrEmpty(node.stoppingPoint))
+				var prefixVar = new PrefixVar
+				{
+					name = param.name
+				};
+			
+				if (string.IsNullOrEmpty(param.stoppingPoint))
 				{
 					prefixVar.value = key[i..];
-					
-					result.value = node.value;
 				}
 				else
 				{
-					var stopIndex = key.IndexOf(node.stoppingPoint);
+					prefixVar.value = key[i..stopIndex];
 					
-					if (stopIndex != -1)
-					{
-						prefixVar.value = key[i..stopIndex];
-						i += stopIndex - i + 1;
-					}
-					// Console.WriteLine(prefixVar.value);
+					i = stopIndex;
 				}
-
+			
 				result.vars ??= [];
 				
 				result.vars.Add(prefixVar);
-
+				
+				result.value = node.value;
+			
 				foundAny = true;
 			}
 			
-			var next = node.children[key[i] - PrefixNode.OFFSET];
-			
+			var next = node.children[GetIndex(key[i])];
+
 			if (next == null)
 			{
 				return foundAny;
@@ -153,9 +193,9 @@ class Program
 		
 		pt.Add("/api/user/{id}", 1);
 		pt.Add("/api/user/{id}-post", 2);
-		// pt.Add("/api/user/{id}_{name}", 3);
+		pt.Add("/api/user/{id}_{name}", 3);
 		
-		var found = pt.TryGet("/api/user/10", out var result);
+		var found = pt.TryGet("/api/user/10-post", out var result);
 		
 		if (found)
 		{
