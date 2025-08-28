@@ -11,21 +11,12 @@ using Net = System.Net;
 using System.Net.Sockets;
 
 using Wire;
+using Wire.Server.Router;
 
 public enum RunResult
 {
 	Ok,
 	IpAddressParseError,
-}
-
-internal struct HandlerData
-{
-	public Type ownerType;
-	public object obj;
-	public ObjectMethodExecutor executor;
-	public MethodInfo methodInfo;
-	public HttpMethod httpMethod;
-	public bool isAsync;
 }
 
 public class Server
@@ -35,7 +26,7 @@ public class Server
 
 	TcpListener _server;
 	Config _config;
-	Dictionary<string, HandlerData> _handlers = [];
+	Router.Router _router = new();
 
 	// blocks and handles requests until server stops
 	public async Task<RunResult> Run(Config? config = null)
@@ -95,50 +86,19 @@ public class Server
 				}
 				
 				var r = request.Value;
+
+				var (result, response) = await _router.RouteAndCall(r);
 				
-				var exists = _handlers.TryGetValue(r.path, out var handler);
-				
-				// TODO send an error response
-				if (!exists)
+				if (result != RouteResult.Ok)
 				{
-					SendResponse(client, stream, new Response(HttpStatusCode.NotFound));
+					var status = RouteResultMethods.TranslateToHttpStatus(result);
+					SendResponse(client, stream, new Response(status));
 					return;
 				}
 
-				object? returnValue;
+				SendResponse(client, stream, response);
 
-				if (handler.isAsync)
-				{
-					returnValue = await handler.executor.ExecuteAsync(handler.obj, null);
-				}
-				else
-				{
-					returnValue = handler.executor.Execute(handler.obj, null);
-				}
-				
-				if (returnValue == null)
-				{
-					SendResponse(client, stream, new Response());
-				}
-				else
-				{
-					Response response;
-
-					if (returnValue.GetType() == typeof(Response))
-					{
-						response = (Response)returnValue;
-					}
-					else
-					{
-						var str = returnValue.ToString();
-
-						var bytes = Encoding.UTF8.GetBytes(str);
-						
-						response = new Response(body: bytes);
-					}
-
-					SendResponse(client, stream, response);
-				}
+				return;
 			}
 		}
 		finally
@@ -212,7 +172,7 @@ public class Server
 				var obj = Activator.CreateInstance(type);
 				var executor = ObjectMethodExecutor.Create(method, type.GetTypeInfo());
 				
-				_handlers[fullPath] = new HandlerData()
+				var data = new HandlerData()
 				{
 					obj = obj,
 					executor = executor,
@@ -220,6 +180,14 @@ public class Server
 					httpMethod = handlerAttr.method,
 					isAsync = method.GetCustomAttribute<AsyncStateMachineAttribute>() != null,
 				};
+
+				var result = _router.Index(fullPath, data);
+				
+				// TODO: integrate logging into the server
+				if (result != RouteResult.Ok)
+				{
+					Console.WriteLine(RouteResultMethods.ToString(result));
+				}
 			}
 		}
 	}

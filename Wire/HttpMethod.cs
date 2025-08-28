@@ -1,6 +1,6 @@
 namespace Wire;
 
-public enum HttpMethod
+public enum HttpMethod : byte
 {
 	Get,
 	Post,
