@@ -1,6 +1,6 @@
 namespace Wire.Server.Router;
 
-internal enum RouteResult
+public enum RouteResult
 {
 	Ok,
 	UnclosedBrace,
@@ -8,7 +8,7 @@ internal enum RouteResult
 	MethodNotFound,
 }
 
-internal static class RouteResultMethods
+public static class RouteResultMethods
 {
 	public static string ToString(RouteResult result)
 	{

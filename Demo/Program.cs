@@ -9,7 +9,7 @@ class Program
 	{
 		var server = new Server();
 		
-		server.router.AddDependancy(new Counter());
+		server.router.AddDependency(new Counter());
 		
 		server.router.IndexHandlers();
 	

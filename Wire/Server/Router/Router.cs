@@ -13,7 +13,7 @@ public class Router
 	PrefixTree _prefixTree = new ();
 	Dictionary<Type, object> _handlerDeps = [];
 
-	public void AddDependancy<T>([NotNull] T obj) => _handlerDeps[typeof(T)] = obj;
+	public void AddDependency<T>([NotNull] T obj) => _handlerDeps[typeof(T)] = obj;
 
 	public void IndexHandlers()
 	{
@@ -24,8 +24,8 @@ public class Router
 
 		foreach (var type in handlerTypes)
 		{
-			var endpointAttr = type.GetCustomAttribute<EndpointAttribute>();
 			var routeAttr = type.GetCustomAttribute<RouteAttribute>();
+			
 			string route;
 
 			if (routeAttr != null)

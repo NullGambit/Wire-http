@@ -21,9 +21,19 @@ public class Server
 	public static readonly Config DefaultConfig = new (port: 8080);
 	public bool shouldRun = true;
 	public readonly Router.Router router = new();
+	public Action<RouteResult, Request, TcpClient, NetworkStream> onRouteFail;
 
 	TcpListener _server;
 	Config _config;
+
+	public Server()
+	{
+		onRouteFail = (result, _, client, stream) =>
+		{
+			var status = RouteResultMethods.TranslateToHttpStatus(result);
+			SendResponse(client, stream, new Response(status));
+		};
+	}
 
 	// blocks and handles requests until server stops
 	public async Task<RunResult> Run(Config? config = null)
@@ -86,8 +96,7 @@ public class Server
 				
 				if (result != RouteResult.Ok)
 				{
-					var status = RouteResultMethods.TranslateToHttpStatus(result);
-					SendResponse(client, stream, new Response(status));
+					onRouteFail(result, request, client, stream);
 					return;
 				}
 
@@ -102,7 +111,7 @@ public class Server
 		}
 	}
 
-	async Task SendResponse(TcpClient client, NetworkStream stream, Response response)
+	async public Task SendResponse(TcpClient client, NetworkStream stream, Response response)
 	{
 		var responseMemory = await FrameWriter.WriteResponse(response);
 				
