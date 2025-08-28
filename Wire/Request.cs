@@ -1,6 +1,6 @@
 namespace Wire;
 
-public record struct Request
+public record Request
 (
 	HttpMethod method = HttpMethod.Get,
 	string path = "",

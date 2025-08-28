@@ -1,13 +1,19 @@
+using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Extensions.Internal;
 
 namespace Wire.Server.Router;
 
-internal class Router
+public class Router
 {
 	PrefixTree _prefixTree = new ();
+	Dictionary<Type, object> _handlerDeps = [];
+
+	public void AddDependancy<T>([NotNull] T obj) => _handlerDeps[typeof(T)] = obj;
 
 	public void IndexHandlers()
 	{
@@ -36,9 +42,9 @@ internal class Router
 			var handlerMethods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
 				.Where(m => m.GetCustomAttribute<HandlerMethodAttribute>(true) != null);
 			
-			foreach (var method in handlerMethods)
+			foreach (var methodInfo in handlerMethods)
 			{
-				var handlerAttr = method.GetCustomAttribute<HandlerMethodAttribute>(true);
+				var handlerAttr = methodInfo.GetCustomAttribute<HandlerMethodAttribute>(true);
 
 				if (handlerAttr == null)
 				{
@@ -49,7 +55,7 @@ internal class Router
 
 				if (string.IsNullOrEmpty(handlerAttr.path))
 				{
-					path = method.Name;
+					path = methodInfo.Name;
 				}
 				else
 				{
@@ -62,16 +68,49 @@ internal class Router
 				
 				Console.WriteLine($"Registered {fullPath}");
 				
-				var obj = Activator.CreateInstance(type);
-				var executor = ObjectMethodExecutor.Create(method, type.GetTypeInfo());
+				var ctorInfos = type.GetConstructors();
+				
+				List<object> deps = [];
+
+				foreach (var ctorInfo in ctorInfos)
+				{
+					var ctorParams = ctorInfo.GetParameters();
+					var foundAny = false;
+
+					foreach (var paramInfo in ctorParams)
+					{
+						var exists = _handlerDeps.TryGetValue(paramInfo.ParameterType, out object dep);
+
+						if (!exists)
+						{
+							foundAny = false;
+							break;
+						}
+
+						foundAny = true;
+						
+						deps.Add(dep);
+					}
+
+					if (foundAny)
+					{
+						break;
+					}
+					
+					deps.Clear();
+				}
+				
+				var obj = Activator.CreateInstance(type, deps.ToArray());
+				var executor = ObjectMethodExecutor.Create(methodInfo, type.GetTypeInfo());
 				
 				var data = new HandlerData()
 				{
 					obj = obj,
 					executor = executor,
-					methodInfo = method,
+					methodInfo = methodInfo,
 					httpMethod = handlerAttr.method,
-					isAsync = method.GetCustomAttribute<AsyncStateMachineAttribute>() != null,
+					parameterInfos = methodInfo.GetParameters(),
+					isAsync = methodInfo.GetCustomAttribute<AsyncStateMachineAttribute>() != null,
 				};
 
 				var result = Index(fullPath, data);
@@ -126,9 +165,9 @@ internal class Router
 		return route;
 	}
 
-	public RouteResult Index(string route, HandlerData data) => _prefixTree.Add(route, data);
+	internal RouteResult Index(string route, HandlerData data) => _prefixTree.Add(route, data);
 
-	public async Task<(RouteResult, Response?)> RouteAndCall(Request request)
+	internal async Task<(RouteResult, Response?)> RouteAndCall(Request request)
 	{
 		var routeResult = _prefixTree.Get(request.path, request.method, out var result);
 
@@ -140,32 +179,36 @@ internal class Router
 		var handler = result.value;
 		
 		object? returnValue;
-		List<object?>? parameters = null;
-
-		foreach (var paramInfo in handler.methodInfo.GetParameters())
+		var parameters = new object[handler.parameterInfos.Length];
+		
+		for (var i = 0; i < handler.parameterInfos.Length; i++)
 		{
-			parameters ??= [];
+			var paramInfo = handler.parameterInfos[i];
 			
 			var prefixVar = result.vars.Find(pv => pv.name == paramInfo.Name);
 
 			if (paramInfo.ParameterType == typeof(string))
 			{
-				parameters.Add(prefixVar.value);
+				parameters[i] = prefixVar.value;
 			}
 			else if (paramInfo.ParameterType == typeof(int))
 			{
 				var obj = Convert.ChangeType(prefixVar.value, paramInfo.ParameterType);
-				parameters.Add(obj);
+				parameters[i] = obj;
+			}
+			else if (paramInfo.ParameterType == typeof(Request))
+			{
+				parameters[i] = request;
 			}
 		}
 
 		if (handler.isAsync)
 		{
-			returnValue = await handler.executor.ExecuteAsync(handler.obj, parameters.ToArray());
+			returnValue = await handler.executor.ExecuteAsync(handler.obj, parameters);
 		}
 		else
 		{
-			returnValue = handler.executor.Execute(handler.obj, parameters.ToArray());
+			returnValue = handler.executor.Execute(handler.obj, parameters);
 		}
 				
 		if (returnValue == null)

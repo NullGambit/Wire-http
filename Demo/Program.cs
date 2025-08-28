@@ -1,4 +1,5 @@
-﻿using Wire.Server;
+﻿using Api;
+using Wire.Server;
 
 namespace Demo;
 
@@ -8,7 +9,9 @@ class Program
 	{
 		var server = new Server();
 		
-		server.IndexHandlers();
+		server.router.AddDependancy(new Counter());
+		
+		server.router.IndexHandlers();
 	
 		var result = await server.Run();
 	}

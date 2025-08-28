@@ -20,10 +20,10 @@ public class Server
 {
 	public static readonly Config DefaultConfig = new (port: 8080);
 	public bool shouldRun = true;
+	public readonly Router.Router router = new();
 
 	TcpListener _server;
 	Config _config;
-	Router.Router _router = new();
 
 	// blocks and handles requests until server stops
 	public async Task<RunResult> Run(Config? config = null)
@@ -53,8 +53,6 @@ public class Server
 		return RunResult.Ok;
 	}
 
-	public void IndexHandlers() => _router.IndexHandlers();
-
 	async Task HandleClient(TcpClient c)
 	{
 		using var client = c;
@@ -77,16 +75,14 @@ public class Server
 				var request = await FrameParser.ParseRequestAsync(buffer[..bytesRead]);
 				
 				// TODO send an error response
-				if (!request.HasValue)
+				if (request == null)
 				{
 					SendResponse(client, stream, 
 						new Response(HttpStatusCode.BadRequest, message: "Could not parse request frame"));
 					return;
 				}
 				
-				var r = request.Value;
-
-				var (result, response) = await _router.RouteAndCall(r);
+				var (result, response) = await router.RouteAndCall(request);
 				
 				if (result != RouteResult.Ok)
 				{
