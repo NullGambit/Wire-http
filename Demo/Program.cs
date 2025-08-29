@@ -19,35 +19,11 @@ class Program
 		{
 			requestCount++;
 			Console.WriteLine($"{requestCount} requests made");
-			await ctx.SendResponse(new Response(HttpStatusCode.OK));
-			// next(ctx);
+			next(ctx);
 		});
 		
 		server.router.IndexHandlers();
 		
-		var result = await server.Run();
-
-		// var pipeline = new MiddlewarePipeline();
-		//
-		// pipeline
-		// 	.Use(async (ctx, next) =>
-		// 	{
-		// 		Console.WriteLine("A");
-		// 		next(ctx);
-		// 	})
-		// 	.Use(async (ctx, next) =>
-		// 	{
-		// 		Console.WriteLine("B");
-		// 		next(ctx);
-		// 	})
-		// 	.Use(async (ctx, next) =>
-		// 	{
-		// 		Console.WriteLine("C");
-		// 		next(ctx);
-		// 	});
-		//
-		// var handler = pipeline.Build();
-		//
-		// await handler(new MiddlewareContext());
+		await server.Run();
 	}
 }
