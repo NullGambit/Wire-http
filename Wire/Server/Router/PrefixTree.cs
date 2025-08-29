@@ -99,9 +99,9 @@ internal class PrefixTree
 		return RouteResult.Ok;
 	}
 
-	public RouteResult Get(string key, HttpMethod method, out PrefixResult result)
+	public (RouteResult, PrefixResult?) Get(string key, HttpMethod method)
 	{
-		result = new PrefixResult();
+		var result = new PrefixResult();
 		
 		var node = _root;
 		var foundAny = false;
@@ -169,9 +169,9 @@ internal class PrefixTree
 
 		if (result.value == null)
 		{
-			return RouteResult.MethodNotFound;
+			return (RouteResult.MethodNotFound, null);
 		}
 		
-		return foundAny || i == key.Length ? RouteResult.Ok : RouteResult.RouteNotFound;
+		return foundAny || i == key.Length ? (RouteResult.Ok, result) : (RouteResult.RouteNotFound, null);
 	}
 }

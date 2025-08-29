@@ -11,7 +11,7 @@ namespace Wire.Server.Router;
 public class Router
 {
 	PrefixTree _prefixTree = new ();
-	Dictionary<Type, object> _handlerDeps = [];
+	internal Dictionary<Type, object> _handlerDeps = [];
 
 	public void AddDependency<T>([NotNull] T obj) => _handlerDeps[typeof(T)] = obj;
 
@@ -167,18 +167,24 @@ public class Router
 
 	internal RouteResult Index(string route, HandlerData data) => _prefixTree.Add(route, data);
 
-	internal async Task<(RouteResult, Response?)> RouteAndCall(Request request)
+	internal async Task<(RouteResult, PrefixResult?)> Route(Request request)
 	{
-		var routeResult = _prefixTree.Get(request.path, request.method, out var result);
+		var (routeResult, prefixResult) = await Task.Run(() => _prefixTree.Get(request.path, request.method));
 
 		if (routeResult != RouteResult.Ok)
 		{
 			return (routeResult, null);
 		}
+		
+		return (RouteResult.Ok, prefixResult.Value);
+	}
 
+	internal async Task<(RouteResult, Response?)> CallHandler(PrefixResult result, Request request)
+	{
 		var handler = result.value;
 		
 		object? returnValue;
+		
 		var parameters = new object[handler.parameterInfos.Length];
 		
 		for (var i = 0; i < handler.parameterInfos.Length; i++)
@@ -201,7 +207,7 @@ public class Router
 				parameters[i] = request;
 			}
 		}
-
+		
 		if (handler.isAsync)
 		{
 			returnValue = await handler.executor.ExecuteAsync(handler.obj, parameters);

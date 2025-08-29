@@ -1,4 +1,5 @@
 using System.Buffers;
+using Wire.Server.Middleware;
 using Wire.Server.Router;
 
 
@@ -7,7 +8,6 @@ namespace Wire.Server;
 using System;
 using Net = System.Net;
 using System.Net.Sockets;
-
 using Wire;
 
 public enum RunResult
@@ -16,23 +16,34 @@ public enum RunResult
 	IpAddressParseError,
 }
 
+
 public class Server
 {
 	public static readonly Config DefaultConfig = new (port: 8080);
 	public bool shouldRun = true;
 	public readonly Router.Router router = new();
-	public Action<RouteResult, Request, TcpClient, NetworkStream> onRouteFail;
-
+	public delegate Task OnRouteFailDelegate(RouteResult routeResult, Request request, NetworkStream stream);
+	
+	public OnRouteFailDelegate onRouteFail;
+	
 	TcpListener _server;
 	Config _config;
+	readonly MiddlewarePipeline _middlewarePipeline = new();
 
 	public Server()
 	{
-		onRouteFail = (result, _, client, stream) =>
+		onRouteFail = async (result, _, stream) =>
 		{
 			var status = RouteResultMethods.TranslateToHttpStatus(result);
-			SendResponse(client, stream, new Response(status));
+			await SendResponse(stream, new Response(status));
 		};
+	}
+	
+	// a helper over to shorten adding middlewares
+	public Server Use(MiddlewarePipeline.Middleware middleware)
+	{
+		_middlewarePipeline.Use(middleware);
+		return this;
 	}
 
 	// blocks and handles requests until server stops
@@ -87,20 +98,46 @@ public class Server
 				// TODO send an error response
 				if (request == null)
 				{
-					SendResponse(client, stream, 
+					await SendResponse(stream, 
 						new Response(HttpStatusCode.BadRequest, message: "Could not parse request frame"));
 					return;
 				}
+
+				var (routeResult, prefixResult) = await router.Route(request);
 				
-				var (result, response) = await router.RouteAndCall(request);
-				
-				if (result != RouteResult.Ok)
+				if (routeResult != RouteResult.Ok)
 				{
-					onRouteFail(result, request, client, stream);
+					await onRouteFail(routeResult, request, stream);
 					return;
 				}
+				
+				var ctx = new MiddlewareContext
+				{
+					request = request,
+					pipelineData = [],
+					_server = this,
+					_stream = stream,
+					_deps = router._handlerDeps
+				};
 
-				SendResponse(client, stream, response);
+				var pipeline = _middlewarePipeline.Clone();
+
+				pipeline.Use(async (_, _) =>
+				{
+					var (callResult, response) = await router.CallHandler(prefixResult.Value, request);
+				
+					if (callResult != RouteResult.Ok)
+					{
+						await onRouteFail(routeResult, request, stream);
+						return;
+					}
+
+					await SendResponse(stream, response);
+				});
+
+				var handler = pipeline.Build();
+
+				await handler(ctx);
 
 				return;
 			}
@@ -111,12 +148,10 @@ public class Server
 		}
 	}
 
-	async public Task SendResponse(TcpClient client, NetworkStream stream, Response response)
+	async public Task SendResponse(NetworkStream stream, Response response)
 	{
 		var responseMemory = await FrameWriter.WriteResponse(response);
 				
 		await stream.WriteAsync(responseMemory.GetBuffer()[ .. (Index)responseMemory.Length]);
-		
-		client.Dispose();
 	}
 }
