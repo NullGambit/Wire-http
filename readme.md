@@ -37,7 +37,7 @@ setting up the server
 var server = new Server();
 
 // any class can be added as a dependency.
-server.router.AddDependency(new Counter());
+server.router.AddDependency(new Database());
 
 // a simple server wide middleware.
 var requestCount = 0;
