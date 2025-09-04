@@ -2,6 +2,14 @@
 
 Wire is a fast and simple http server that is similar to asp.net.
 
+## Features
+
+* Middlewares
+* static file serving with caching
+* dependancy injection
+* full async request handling
+* dynamic routing
+
 ### Usage
 
 Creating an endpoint
