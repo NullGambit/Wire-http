@@ -12,6 +12,7 @@ public class Router
 {
 	PrefixTree _prefixTree = new ();
 	internal Dictionary<Type, object> _handlerDeps = [];
+	public readonly StaticFileManager staticFileManager = new();
 
 	public void AddDependency<T>([NotNull] T obj) => _handlerDeps[typeof(T)] = obj;
 
@@ -167,8 +168,15 @@ public class Router
 
 	internal RouteResult Index(string route, HandlerData data) => _prefixTree.Add(route, data);
 
-	internal async Task<(RouteResult, PrefixResult?)> Route(Request request)
+	internal async Task<(RouteResult, object?)> Route(Request request)
 	{
+		var staticFileContents = await staticFileManager.Get(request.path);
+
+		if (staticFileContents != null)
+		{
+			return (RouteResult.Ok, new RouteObject(staticFileContents));
+		}
+		
 		var (routeResult, prefixResult) = await Task.Run(() => _prefixTree.Get(request.path, request.method));
 
 		if (routeResult != RouteResult.Ok)
@@ -176,10 +184,29 @@ public class Router
 			return (routeResult, null);
 		}
 		
-		return (RouteResult.Ok, prefixResult.Value);
+		return (RouteResult.Ok, prefixResult);
 	}
 
-	internal async Task<(RouteResult, Response?)> CallHandler(PrefixResult result, Request request)
+	internal async Task<(RouteResult, Response?)> CallHandler(object result, Request request)
+	{
+		if (result.GetType() == typeof(PrefixResult))
+		{
+			return await DoCallHandler((PrefixResult)result, request);
+		}
+		else
+		{
+			var staticFileResult = (RouteObject)result;
+
+			if (staticFileResult.content == null)
+			{
+				return (RouteResult.RouteNotFound, new Response(HttpStatusCode.NotFound));
+			}
+
+			return (RouteResult.Ok, new Response(body: staticFileResult.content));
+		}
+	}
+
+	async Task<(RouteResult, Response?)> DoCallHandler(PrefixResult result, Request request)
 	{
 		var handler = result.value;
 		
@@ -207,7 +234,7 @@ public class Router
 				parameters[i] = request;
 			}
 		}
-		
+
 		if (handler.isAsync)
 		{
 			returnValue = await handler.executor.ExecuteAsync(handler.obj, parameters);

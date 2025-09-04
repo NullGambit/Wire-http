@@ -15,7 +15,7 @@ struct PrefixVar
 	}
 }
 
-struct PrefixResult
+class PrefixResult
 {
 	public HandlerData value;
 	public List<PrefixVar>? vars;

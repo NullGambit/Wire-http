@@ -16,7 +16,6 @@ public enum RunResult
 	IpAddressParseError,
 }
 
-
 public class Server
 {
 	public static readonly Config DefaultConfig = new (port: 8080);
@@ -124,7 +123,7 @@ public class Server
 
 				pipeline.Use(async (_, _) =>
 				{
-					var (callResult, response) = await router.CallHandler(prefixResult.Value, request);
+					var (callResult, response) = await router.CallHandler(prefixResult, request);
 				
 					if (callResult != RouteResult.Ok)
 					{
