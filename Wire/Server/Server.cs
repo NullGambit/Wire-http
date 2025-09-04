@@ -102,7 +102,7 @@ public class Server
 					return;
 				}
 
-				var (routeResult, prefixResult) = await router.Route(request);
+				var (routeResult, routeObject) = await router.Route(request);
 				
 				if (routeResult != RouteResult.Ok)
 				{
@@ -123,7 +123,7 @@ public class Server
 
 				pipeline.Use(async (_, _) =>
 				{
-					var (callResult, response) = await router.CallHandler(prefixResult, request);
+					var (callResult, response) = await router.CallHandler(routeObject, request);
 				
 					if (callResult != RouteResult.Ok)
 					{
