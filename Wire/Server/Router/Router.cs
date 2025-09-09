@@ -108,7 +108,6 @@ public class Router
 				{
 					obj = obj,
 					executor = executor,
-					methodInfo = methodInfo,
 					httpMethod = handlerAttr.method,
 					parameterInfos = methodInfo.GetParameters(),
 					isAsync = methodInfo.GetCustomAttribute<AsyncStateMachineAttribute>() != null,

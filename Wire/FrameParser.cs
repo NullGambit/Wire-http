@@ -1,21 +1,38 @@
+using System.Buffers;
+using System.Net.Sockets;
 using System.Text;
 
 namespace Wire;
 
 // a parser that can parse a single http request or response
-public struct FrameParser(byte[] memory)
+public class FrameParser(NetworkStream stream)
 {
-	public byte[] _mem = memory;
+	static readonly int BUFF_SIZE = 1024;
+	byte[] _mem;
 
 	int _cursor = 0;
 
-	public static async Task<Request?> ParseRequestAsync(byte[] memory)
+	~FrameParser()
 	{
-		return await Task.Run(() => new FrameParser(memory).ParseRequest());
+		ArrayPool<byte>.Shared.Return(_mem);
+	}
+
+	public static async Task<Request?> ParseRequestAsync(NetworkStream stream)
+	{
+		return await Task.Run(() => new FrameParser(stream).ParseRequest());
 	}
 
 	public Request? ParseRequest()
 	{
+		_mem = ArrayPool<byte>.Shared.Rent(BUFF_SIZE);
+
+		var bytesRead = stream.Read(_mem);
+
+		if (bytesRead == 0)
+		{
+			return null;
+		}
+		
 		var methodStr = GetWord();
 		
 		var ok = Enum.TryParse(typeof(HttpMethod), methodStr, ignoreCase: true, out var method);

@@ -77,22 +77,13 @@ public class Server
 	{
 		using var client = c;
 
-		var buffer = ArrayPool<byte>.Shared.Rent(_config.bufferSize);
-		
 		try
 		{
 			var stream = client.GetStream();
 
 			while (true)
 			{
-				var bytesRead = await stream.ReadAsync(buffer);
-
-				if (bytesRead == 0)
-				{
-					break;
-				}
-
-				var request = await FrameParser.ParseRequestAsync(buffer[..bytesRead]);
+				var request = await FrameParser.ParseRequestAsync(stream);
 				
 				// TODO send an error response
 				if (request == null)
@@ -141,9 +132,9 @@ public class Server
 				return;
 			}
 		}
-		finally
+		catch (Exception e)
 		{
-			ArrayPool<byte>.Shared.Return(buffer);
+			Console.WriteLine($"Server caught an exception {e}");
 		}
 	}
 
