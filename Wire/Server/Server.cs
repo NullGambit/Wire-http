@@ -63,8 +63,6 @@ public class Server
 
 		while (shouldRun)
 		{
-			Console.WriteLine("Listening for connections");
-
 			var client = await _server.AcceptTcpClientAsync();
 			
 			HandleClient(client);
@@ -76,12 +74,13 @@ public class Server
 	async Task HandleClient(TcpClient c)
 	{
 		using var client = c;
+		var keepListening = true;
 
 		try
 		{
 			var stream = client.GetStream();
 
-			while (true)
+			while (keepListening)
 			{
 				var request = await FrameParser.ParseRequestAsync(stream);
 				
@@ -92,13 +91,15 @@ public class Server
 						new Response(HttpStatusCode.BadRequest, message: "Could not parse request frame"));
 					return;
 				}
-
+				
+				keepListening = request.KeepAlive;
+				
 				var (routeResult, routeObject) = await router.Route(request);
 				
 				if (routeResult != RouteResult.Ok)
 				{
 					await onRouteFail(routeResult, request, stream);
-					return;
+					continue;
 				}
 				
 				var ctx = new MiddlewareContext
@@ -128,8 +129,6 @@ public class Server
 				var handler = pipeline.Build();
 
 				await handler(ctx);
-
-				return;
 			}
 		}
 		catch (Exception e)

@@ -10,7 +10,7 @@ public class FrameParser(NetworkStream stream)
 	static readonly int BUFF_SIZE = 1024;
 	byte[] _mem;
 
-	int _cursor = 0;
+	int _cursor;
 
 	~FrameParser()
 	{
@@ -25,9 +25,9 @@ public class FrameParser(NetworkStream stream)
 	public Request? ParseRequest()
 	{
 		_mem = ArrayPool<byte>.Shared.Rent(BUFF_SIZE);
-
+		
 		var bytesRead = stream.Read(_mem);
-
+		
 		if (bytesRead == 0)
 		{
 			return null;
@@ -53,13 +53,20 @@ public class FrameParser(NetworkStream stream)
 			
 			SkipBlank();
 		
-			var value = GetLine();
-		
-			headers[key] = value;
+			headers[key] = GetLine();
 		}
 		
-		var request = new Request(method: (HttpMethod)method, path: path, version: version, headers: headers);
+		var request = new Request
+			(
+				method: (HttpMethod)method, 
+				path: path, 
+				version: version, 
+				headers: headers
+			);
 
+		request._bodyBuff = _mem[_cursor..];
+		request._stream = stream;
+		
 		return request;
 	}
 
@@ -130,11 +137,22 @@ public class FrameParser(NetworkStream stream)
 		return _mem[_cursor++];
 	}
 
+	void IncreaseBuffer()
+	{
+		ArrayPool<byte>.Shared.Return(_mem);
+
+		var temp = ArrayPool<byte>.Shared.Rent(_mem.Length * 2);
+		
+		_mem.CopyTo(temp, 0);
+
+		_mem = temp;
+	}
+
 	bool Match(char c)
 	{
-		if (_mem[_cursor] == c)
+		if (Peak() == c)
 		{
-			_cursor++;
+			Advance();
 			return true;
 		}
 
@@ -147,7 +165,7 @@ public class FrameParser(NetworkStream stream)
 		{
 			return 0;
 		}
-
+		
 		return _mem[_cursor + 1];
 	}
 	

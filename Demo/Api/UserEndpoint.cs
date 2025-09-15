@@ -1,3 +1,4 @@
+using System.Text;
 using Wire;
 using Wire.Server;
 
@@ -6,20 +7,24 @@ namespace Api;
 [Endpoint, Route("api/{endpoint}")]
 public class UserEndpoint
 {
-	Counter _counter;
-	Dictionary<string, string> _userTable;
+	readonly Dictionary<string, string> _userTable = [];
 	
-	public UserEndpoint(Counter counter)
+	[Get("{username}")]
+	public async Task<Response> Get(string username)
 	{
-		_counter = counter;
-	}
-	
-	[Get("{id}_{username}")]
-	public async Task<string> Get(int id, string username, Request request)
-	{
-		_counter.counter++;
+		foreach (var (key, v) in _userTable)
+		{
+			Console.WriteLine($"{key} = {v}");
+		}
 		
-		return $"got your id as {id} you are {username}. got request to {request.path}, req_count: {_counter.counter}";
+		var exists = _userTable.TryGetValue(username, out var value);
+
+		if (!exists)
+		{
+			return new Response(HttpStatusCode.BadRequest, message: "user not found");
+		}
+
+		return new Response(body: Encoding.UTF8.GetBytes(value));
 	}
 
 	[Post("create/{username}")]
@@ -30,8 +35,8 @@ public class UserEndpoint
 			return new Response(HttpStatusCode.BadRequest, message: "a user by that username already exists");
 		}
 		
+		_userTable[username] = await request.GetBody();
 		
-
 		return new Response(message: "created new user");
 	}
 }

@@ -40,8 +40,6 @@ public class StaticFileManager
                 formatted = formatted[1..];
             }
             
-            Console.WriteLine(formatted);
-            
             var data = new StaticFileData
             {
                 osPath = file,

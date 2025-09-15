@@ -37,6 +37,40 @@ public class Router
 			{
 				route = GetRouteFromType(type);
 			}
+			
+			var ctorInfos = type.GetConstructors();
+				
+			List<object> deps = [];
+
+			foreach (var ctorInfo in ctorInfos)
+			{
+				var ctorParams = ctorInfo.GetParameters();
+				var foundAny = false;
+
+				foreach (var paramInfo in ctorParams)
+				{
+					var exists = _handlerDeps.TryGetValue(paramInfo.ParameterType, out object dep);
+
+					if (!exists)
+					{
+						foundAny = false;
+						break;
+					}
+
+					foundAny = true;
+						
+					deps.Add(dep);
+				}
+
+				if (foundAny)
+				{
+					break;
+				}
+					
+				deps.Clear();
+			}
+			
+			var obj = Activator.CreateInstance(type, deps.ToArray());
 
 			route = CorrectPath(route);
 			
@@ -69,39 +103,6 @@ public class Router
 				
 				Console.WriteLine($"Registered {fullPath}");
 				
-				var ctorInfos = type.GetConstructors();
-				
-				List<object> deps = [];
-
-				foreach (var ctorInfo in ctorInfos)
-				{
-					var ctorParams = ctorInfo.GetParameters();
-					var foundAny = false;
-
-					foreach (var paramInfo in ctorParams)
-					{
-						var exists = _handlerDeps.TryGetValue(paramInfo.ParameterType, out object dep);
-
-						if (!exists)
-						{
-							foundAny = false;
-							break;
-						}
-
-						foundAny = true;
-						
-						deps.Add(dep);
-					}
-
-					if (foundAny)
-					{
-						break;
-					}
-					
-					deps.Clear();
-				}
-				
-				var obj = Activator.CreateInstance(type, deps.ToArray());
 				var executor = ObjectMethodExecutor.Create(methodInfo, type.GetTypeInfo());
 				
 				var data = new HandlerData()
